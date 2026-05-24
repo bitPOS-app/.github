@@ -25,10 +25,10 @@ The exact commit running on `bitpos.app` right now. Regenerated on every push by
 
 <!-- VERIFY:START -->
 ```
-  tag    │ v0.1.0
-  sha    │ cf0103d1b62c3dff630ae308a9e9f629283a420d
-  short  │ cf0103d
-  built  │ 2026-05-24T13:24:43Z
+  tag    │ build-7
+  sha    │ 48f52e85260ad9c174d768f478196f37e4f2bce9
+  short  │ 48f52e8
+  built  │ 2026-05-24T15:44:06Z
 ```
 <!-- VERIFY:END -->
 
