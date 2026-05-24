@@ -1,0 +1,100 @@
+name: refresh verify block
+
+# Rewrites the "currently in production" block in profile/README.md with the
+# live tag, full SHA, short SHA, and commit timestamp from the bitPOS-app/bitpos
+# repo. Runs hourly, on manual dispatch, and on cross-repo notification.
+
+on:
+  schedule:
+    - cron: '17 * * * *'        # hourly at :17 (avoids cron-storm minute :00)
+  workflow_dispatch:             # manual trigger from Actions tab
+  repository_dispatch:           # cross-repo: bitpos can POST here on push/release
+    types: [bitpos-deployed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-verify
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch live state from bitPOS-app/bitpos
+        id: live
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          API="https://api.github.com/repos/bitPOS-app/bitpos"
+          HDR=(-H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json")
+
+          # Latest release tag (falls back to latest tag, then "untagged")
+          TAG=$(curl -sf "${HDR[@]}" "$API/releases/latest" | jq -r '.tag_name // empty')
+          if [ -z "$TAG" ]; then
+            TAG=$(curl -sf "${HDR[@]}" "$API/tags" | jq -r '.[0].name // "untagged"')
+          fi
+
+          # Current main HEAD SHA + commit date
+          BRANCH_JSON=$(curl -sf "${HDR[@]}" "$API/branches/main")
+          SHA=$(echo "$BRANCH_JSON" | jq -r '.commit.sha')
+          DATE=$(echo "$BRANCH_JSON" | jq -r '.commit.commit.author.date')
+          SHORT="${SHA:0:7}"
+
+          echo "tag=$TAG"     >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA"     >> "$GITHUB_OUTPUT"
+          echo "short=$SHORT" >> "$GITHUB_OUTPUT"
+          echo "date=$DATE"   >> "$GITHUB_OUTPUT"
+
+          echo "::notice::live state - tag=$TAG sha=$SHORT date=$DATE"
+
+      - name: Rewrite VERIFY block
+        env:
+          TAG:   ${{ steps.live.outputs.tag }}
+          SHA:   ${{ steps.live.outputs.sha }}
+          SHORT: ${{ steps.live.outputs.short }}
+          DATE:  ${{ steps.live.outputs.date }}
+        run: |
+          python3 <<'PY'
+          import os, re, pathlib
+          p = pathlib.Path('profile/README.md')
+          s = p.read_text()
+          new = (
+              "<!-- VERIFY:START -->\n"
+              "```\n"
+              f"  tag    │ {os.environ['TAG']}\n"
+              f"  sha    │ {os.environ['SHA']}\n"
+              f"  short  │ {os.environ['SHORT']}\n"
+              f"  built  │ {os.environ['DATE']}\n"
+              "```\n"
+              "<!-- VERIFY:END -->"
+          )
+          out, n = re.subn(
+              r'<!-- VERIFY:START -->.*?<!-- VERIFY:END -->',
+              new, s, count=1, flags=re.DOTALL,
+          )
+          if n != 1:
+              raise SystemExit("ERROR: VERIFY markers not found in profile/README.md")
+          p.write_text(out)
+          PY
+
+      - name: Commit if changed
+        run: |
+          git config user.name  "bitpos-verify-bot"
+          git config user.email "verify-bot@users.noreply.github.com"
+          git add profile/README.md
+          if git diff --staged --quiet; then
+            echo "::notice::no change - README already up to date"
+            exit 0
+          fi
+          git commit -m "auto: refresh verify block → ${SHORT} ($(date -u +%Y-%m-%dT%H:%MZ))" \
+            -m "tag=${TAG} sha=${SHA}"
+          git push
+        env:
+          TAG:   ${{ steps.live.outputs.tag }}
+          SHA:   ${{ steps.live.outputs.sha }}
+          SHORT: ${{ steps.live.outputs.short }}
