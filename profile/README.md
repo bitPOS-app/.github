@@ -26,9 +26,9 @@ The exact commit running on `bitpos.app` right now. Regenerated on every push by
 <!-- VERIFY:START -->
 ```
   tag    │ build-13
-  sha    │ 66d9b8e7bf4764fba82456739bd2a9996e8f6232
-  short  │ 66d9b8e
-  built  │ 2026-05-31T04:32:08Z
+  sha    │ 58768623f32cac95ed3b23579f5a82e9773ceeec
+  short  │ 5876862
+  built  │ 2026-05-31T08:22:36Z
 ```
 <!-- VERIFY:END -->
 
