@@ -1,14 +1,15 @@
 name: refresh verify block
 
-# Rewrites the "currently in production" block in profile/README.md with the
-# live tag, full SHA, short SHA, and commit timestamp from the bitPOS-app/bitpos
-# repo. Runs hourly, on manual dispatch, and on cross-repo notification.
+# Rewrites the "currently in production" fingerprint block in profile/README.md
+# with the live tag, full SHA, short SHA, and commit timestamp from
+# bitPOS-app/bitpos:main. Runs hourly, on manual dispatch, and on cross-repo
+# notification (the bitpos repo POSTs here on push/release).
 
 on:
   schedule:
     - cron: '17 * * * *'        # hourly at :17 (avoids cron-storm minute :00)
   workflow_dispatch:             # manual trigger from Actions tab
-  repository_dispatch:           # cross-repo: bitpos can POST here on push/release
+  repository_dispatch:           # cross-repo: bitpos POSTs here on push/release
     types: [bitpos-deployed]
 
 permissions:
@@ -27,20 +28,23 @@ jobs:
 
       - name: Fetch live state from bitPOS-app/bitpos
         id: live
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           API="https://api.github.com/repos/bitPOS-app/bitpos"
-          HDR=(-H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json")
+          AUTH_HEADER=()
+          # Use the built-in token when available (private repos / higher limits),
+          # otherwise anonymous access works for a public repo.
+          if [ -n "${GH_TOKEN:-}" ]; then
+            AUTH_HEADER=(-H "Authorization: Bearer ${GH_TOKEN}")
+          fi
 
           # Latest release tag (falls back to latest tag, then "untagged")
-          TAG=$(curl -sf "${HDR[@]}" "$API/releases/latest" | jq -r '.tag_name // empty')
+          TAG=$(curl -sf "${AUTH_HEADER[@]}" "$API/releases/latest" | jq -r '.tag_name // empty')
           if [ -z "$TAG" ]; then
-            TAG=$(curl -sf "${HDR[@]}" "$API/tags" | jq -r '.[0].name // "untagged"')
+            TAG=$(curl -sf "${AUTH_HEADER[@]}" "$API/tags" | jq -r '.[0].name // "untagged"')
           fi
 
           # Current main HEAD SHA + commit date
-          BRANCH_JSON=$(curl -sf "${HDR[@]}" "$API/branches/main")
+          BRANCH_JSON=$(curl -sf "${AUTH_HEADER[@]}" "$API/branches/main")
           SHA=$(echo "$BRANCH_JSON" | jq -r '.commit.sha')
           DATE=$(echo "$BRANCH_JSON" | jq -r '.commit.commit.author.date')
           SHORT="${SHA:0:7}"
@@ -51,6 +55,8 @@ jobs:
           echo "date=$DATE"   >> "$GITHUB_OUTPUT"
 
           echo "::notice::live state - tag=$TAG sha=$SHORT date=$DATE"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Rewrite VERIFY block
         env:
@@ -83,6 +89,10 @@ jobs:
           PY
 
       - name: Commit if changed
+        env:
+          TAG:   ${{ steps.live.outputs.tag }}
+          SHA:   ${{ steps.live.outputs.sha }}
+          SHORT: ${{ steps.live.outputs.short }}
         run: |
           git config user.name  "bitpos-verify-bot"
           git config user.email "verify-bot@users.noreply.github.com"
@@ -94,7 +104,3 @@ jobs:
           git commit -m "auto: refresh verify block → ${SHORT} ($(date -u +%Y-%m-%dT%H:%MZ))" \
             -m "tag=${TAG} sha=${SHA}"
           git push
-        env:
-          TAG:   ${{ steps.live.outputs.tag }}
-          SHA:   ${{ steps.live.outputs.sha }}
-          SHORT: ${{ steps.live.outputs.short }}

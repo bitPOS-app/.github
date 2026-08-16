@@ -19,22 +19,33 @@
 
 ---
 
+## what is bitPOS
+
+bitPOS is a self-hosted Lightning point of sale — a merchant dashboard, a tap-to-pay terminal (the posBOX), and NFC Bolt Card support, all settled over NIP-47 Nostr Wallet Connect against **your own node**. No third party ever touches your sats.
+
+| Project | What it is |
+|---------|------------|
+| [`bitPOS-app/bitpos`](https://github.com/bitPOS-app/bitpos) | The full stack: API server, web app, landing, posBOX firmware, card writer. |
+| [`bitPOS-app/.github`](https://github.com/bitPOS-app/.github) | This profile + the published verification fingerprint. |
+
+---
+
 ## fingerprint
 
-The exact commit running on `bitpos.app` right now. Regenerated on every push by [`refresh-verify.yml`](./.github/workflows/refresh-verify.yml).
+The exact commit running on `bitpos.app` right now. Regenerated on every push by [`refresh-verify.yml`](https://github.com/bitPOS-app/.github/blob/main/.github/workflows/refresh-verify.yml).
 
 <!-- VERIFY:START -->
 ```
-  tag    │ build-13
-  sha    │ 106343f6d4b37222b2531217fe72cc42e96917b3
-  short  │ 106343f
-  built  │ 2026-07-10T06:05:34Z
+  tag    │ untagged
+  sha    │ 922ef38688b8a527608ddce48acfdabbc0881310
+  short  │ 922ef38
+  built  │ 2026-08-16T12:03:42Z
 ```
 <!-- VERIFY:END -->
 
 ```bash
 $ curl -s https://bitpos.app/api/version | jq -r .commit
-20a4e827e89c6f1bc9a55d50d6b5ffd40c455a83
+922ef38688b8a527608ddce48acfdabbc0881310
 ```
 
 Two values. They match. That is the entire promise.
