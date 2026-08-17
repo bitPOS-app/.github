@@ -17,9 +17,9 @@ Commit on `bitPOS-app/bitpos` `main`. Updated by
 <!-- VERIFY:START -->
 ```
   tag    │ build-13
-  sha    │ d8944241e9710df692f995131d8d473d7e40c4cf
-  short  │ d894424
-  built  │ 2026-08-17T04:18:00Z
+  sha    │ 6b4c1969e48fdc65613b8b5459db20f2964406e6
+  short  │ 6b4c196
+  built  │ 2026-08-17T04:22:47Z
 ```
 <!-- VERIFY:END -->
 
